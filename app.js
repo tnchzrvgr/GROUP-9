@@ -10,6 +10,7 @@ const overlay = $('overlay');
 const ctx = overlay.getContext('2d');
 const videoWrap = $('videoWrap');
 const deviceSelect = $('deviceSelect');
+const refreshBtn = $('refreshBtn');
 const startBtn = $('startBtn');
 const stopBtn = $('stopBtn');
 const modelBadge = $('modelBadge');
@@ -21,6 +22,10 @@ const confRange = $('confRange');
 const coolRange = $('coolRange');
 const voiceToggle = $('voiceToggle');
 const sayCategory = $('sayCategory');
+const detectedCount = $('detectedCount');
+const cameraHelp = $('cameraHelp');
+const testVoiceBtn = $('testVoiceBtn');
+const clearLogBtn = $('clearLogBtn');
 
 // ---------- Settings ----------
 const CONFIRM_FRAMES = 3;     // object must be seen in N consecutive detections before announcing
@@ -87,6 +92,15 @@ async function listCameras() {
   const cams = devices.filter((d) => d.kind === 'videoinput');
   const previous = deviceSelect.value;
   deviceSelect.innerHTML = '';
+  if (!cams.length) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'No cameras found';
+    deviceSelect.appendChild(option);
+    deviceSelect.disabled = true;
+    return 0;
+  }
+  deviceSelect.disabled = false;
   cams.forEach((cam, i) => {
     const opt = document.createElement('option');
     opt.value = cam.deviceId;
@@ -97,6 +111,19 @@ async function listCameras() {
   const phoneMatch = cams.find((c) => /droidcam|iriun|camo|epoccam|obs|virtual|phone|ivcam|continuity/i.test(c.label));
   if (previous && cams.some((c) => c.deviceId === previous)) deviceSelect.value = previous;
   else if (phoneMatch) deviceSelect.value = phoneMatch.deviceId;
+  return cams.length;
+}
+
+async function refreshCameras() {
+  try {
+    const count = await listCameras();
+    cameraHelp.textContent = count
+      ? `${count} camera${count === 1 ? '' : 's'} available. Changing the selected source switches cameras.`
+      : 'No camera devices found. Connect a webcam or start your phone-webcam app, then refresh.';
+  } catch (err) {
+    console.error('Could not list cameras', err);
+    cameraHelp.textContent = 'Could not refresh cameras. Check browser camera permissions and try again.';
+  }
 }
 
 async function startCamera() {
@@ -106,6 +133,7 @@ async function startCamera() {
   }
   stopCamera();
   setBadge(camBadge, 'Camera: connecting…', 'wait');
+  let nextStream;
   try {
     // First call (no deviceId) grants permission so device labels become visible
     const constraints = {
@@ -114,24 +142,30 @@ async function startCamera() {
         : { width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false,
     };
-    stream = await navigator.mediaDevices.getUserMedia(constraints);
-    video.srcObject = stream;
+    nextStream = await navigator.mediaDevices.getUserMedia(constraints);
+    stream = nextStream;
+    video.srcObject = nextStream;
     await video.play();
+    await waitForVideoFrame();
 
     await listCameras();
-    const activeId = stream.getVideoTracks()[0].getSettings().deviceId;
+    const track = nextStream.getVideoTracks()[0];
+    const activeId = track.getSettings().deviceId;
     if (activeId) deviceSelect.value = activeId;
 
-    const label = stream.getVideoTracks()[0].label || 'camera';
-    setBadge(camBadge, `Camera: active (${label})`, 'on');
+    const label = track.label || 'camera';
+    setBadge(camBadge, `Camera: active (${label}, ${video.videoWidth}×${video.videoHeight})`, 'on');
     videoWrap.classList.add('live');
     startBtn.disabled = true;
     stopBtn.disabled = false;
 
-    // If the phone app disconnects, update status
-    stream.getVideoTracks()[0].addEventListener('ended', () => {
+    track.addEventListener('ended', () => {
       setBadge(camBadge, 'Camera: disconnected', 'off');
       stopCamera();
+    });
+    track.addEventListener('mute', () => setBadge(camBadge, 'Camera: feed interrupted', 'wait'));
+    track.addEventListener('unmute', () => {
+      if (running) setBadge(camBadge, `Camera: active (${label}, ${video.videoWidth}×${video.videoHeight})`, 'on');
     });
 
     // Resize overlay to the real video resolution
@@ -145,8 +179,49 @@ async function startCamera() {
     requestAnimationFrame(detectLoop);
   } catch (err) {
     console.error(err);
-    setBadge(camBadge, 'Camera: ' + (err.name === 'NotAllowedError' ? 'permission denied' : 'not found / busy'), 'off');
+    if (nextStream) nextStream.getTracks().forEach((track) => track.stop());
+    if (stream === nextStream) {
+      stream = null;
+      video.srcObject = null;
+    }
+    const messages = {
+      NotAllowedError: 'permission denied; allow camera access in the browser',
+      NotFoundError: 'camera not found; check that the selected camera is connected',
+      NotReadableError: 'camera is busy; close other apps using it',
+      OverconstrainedError: 'camera rejected the requested settings; try reconnecting it',
+    };
+    const detail = messages[err.name] || err.message || 'could not start; check the browser console';
+    setBadge(camBadge, `Camera: ${detail}`, 'off');
   }
+}
+
+function waitForVideoFrame() {
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('Camera connected but did not provide a video frame.'));
+    }, 8000);
+    const cleanup = () => {
+      clearTimeout(timeout);
+      video.removeEventListener('loadeddata', checkReady);
+      video.removeEventListener('error', onError);
+    };
+    const checkReady = () => {
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.videoWidth === 0) return;
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(video.error || new Error('The camera video could not be decoded.'));
+    };
+    video.addEventListener('loadeddata', checkReady);
+    video.addEventListener('error', onError);
+    checkReady();
+  });
 }
 
 function stopCamera() {
@@ -222,6 +297,7 @@ function drawBoxes(preds) {
 
 // ---------- Detection list UI ----------
 function renderDetections(preds) {
+  detectedCount.textContent = String(new Set(preds.map((p) => p.class)).size);
   if (!preds.length) {
     detectList.innerHTML = '<li class="empty">Nothing detected</li>';
     return;
@@ -317,6 +393,7 @@ function speak(text) {
 // ---------- Wire up UI ----------
 startBtn.addEventListener('click', startCamera);
 stopBtn.addEventListener('click', stopCamera);
+refreshBtn.addEventListener('click', refreshCameras);
 deviceSelect.addEventListener('change', () => { if (running) startCamera(); });
 confRange.addEventListener('input', () => {
   minConfidence = confRange.value / 100;
@@ -326,11 +403,18 @@ coolRange.addEventListener('input', () => {
   cooldownMs = coolRange.value * 1000;
   $('coolVal').textContent = coolRange.value;
 });
-$('testVoiceBtn').addEventListener('click', () => {
+testVoiceBtn.disabled = !('speechSynthesis' in window);
+testVoiceBtn.title = testVoiceBtn.disabled ? 'Speech synthesis is not supported in this browser' : '';
+testVoiceBtn.addEventListener('click', () => {
+  if (!('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
   speechSynthesis.speak(new SpeechSynthesisUtterance('Voice test. Apple detected.'));
 });
-navigator.mediaDevices?.addEventListener?.('devicechange', listCameras);
+clearLogBtn.addEventListener('click', () => {
+  logList.innerHTML = '<li class="empty">No announcements yet</li>';
+});
+navigator.mediaDevices?.addEventListener?.('devicechange', refreshCameras);
 
 setBadge(camBadge, 'Camera: disconnected', 'off');
+refreshCameras();
 loadModel();

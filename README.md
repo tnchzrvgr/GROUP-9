@@ -12,8 +12,7 @@ Smartphone camera → Laptop web app → Pre-trained model → Voice output
    - or Node: `npx serve`
    - or VS Code → "Live Server" extension.
 3. Open **http://localhost:8000** in Chrome or Edge (internet is needed once to load TensorFlow.js and the model).
-4. Click **Start Camera**, allow permission, then pick the phone's camera in the **Camera source** dropdown
-   (names like "DroidCam", "Iriun Webcam", "Camo").
+4. Click **Start Camera** and allow permission. If the phone camera is not listed yet, make sure its webcam app is connected and click **Refresh cameras**. Choose the phone camera in **Camera source** (for example, "Iriun Webcam"); changing the selection switches cameras.
 5. Show objects to the phone camera. Labels, boxes and confidence appear; the laptop speaks "<object> detected".
 
 ## System integration diagram
@@ -79,6 +78,7 @@ Tips: good lighting, hold the object ~30–60 cm from the camera, plain backgrou
 ## Troubleshooting
 
 - **Phone camera not in the dropdown:** make sure the phone app and desktop client are running and connected, then click Start Camera again (device names appear only after permission is granted).
+- **DroidCam is active but the browser preview is solid green:** the browser has opened the virtual camera, but it is receiving unusable frames. Close other apps using the camera (including OBS, Teams, or Windows Camera), restart the DroidCam desktop client and phone connection, then reload the detector and select DroidCam again. If the DroidCam client preview itself is also green, fix the phone feed in that client first.
 - **"Camera busy":** close other apps using the camera (Zoom, Teams, the phone client's own preview).
 - **No voice:** click "Test voice"; check the laptop volume and that "Voice announcements" is ticked. Use Chrome or Edge.
 - **Model failed to load:** check internet access (the libraries load from a CDN).

@@ -8,8 +8,11 @@
 </head>
 <body>
   <header>
-    <h1>AI Real-Time Object Detection &amp; Voice Announcement</h1>
-    <div class="badges">
+    <div class="brand">
+      <h1>AI Object Detector</h1>
+      <p>Real-time object recognition with voice announcements</p>
+    </div>
+    <div class="badges" aria-label="System status">
       <span id="modelBadge" class="badge off">Model: loading…</span>
       <span id="camBadge" class="badge off">Camera: disconnected</span>
       <span id="fpsBadge" class="badge off">0 FPS</span>
@@ -17,49 +20,83 @@
   </header>
 
   <main>
-    <section class="left">
-      <div class="controls">
-        <label>
-          Camera source
-          <select id="deviceSelect"><option value="">Click “Start Camera” first</option></select>
-        </label>
-        <button id="startBtn">Start Camera</button>
-        <button id="stopBtn" class="secondary" disabled>Stop</button>
+    <section class="left panel" aria-labelledby="cameraHeading">
+      <div class="section-heading">
+        <div>
+          <h2 id="cameraHeading">Camera</h2>
+          <p>Connect a webcam or phone-webcam app, then choose its camera source.</p>
+        </div>
       </div>
 
       <div class="video-wrap" id="videoWrap">
-        <video id="video" autoplay playsinline muted></video>
+        <video id="video" autoplay playsinline muted aria-label="Live camera preview"></video>
         <canvas id="overlay"></canvas>
-        <div id="placeholder">Camera feed will appear here</div>
+        <div id="placeholder">
+          <span class="placeholder-icon" aria-hidden="true">◎</span>
+          <strong>Camera preview</strong>
+          <span>Start the camera to begin object detection</span>
+        </div>
       </div>
 
-      <div class="settings">
-        <label>
-          Min confidence: <b id="confVal">60</b>%
-          <input type="range" id="confRange" min="30" max="95" value="60" />
+      <div class="camera-controls">
+        <label class="field" for="deviceSelect">
+          <span>Camera source</span>
+          <select id="deviceSelect" aria-describedby="cameraHelp">
+            <option value="">Searching for cameras…</option>
+          </select>
         </label>
-        <label>
-          Announce cooldown: <b id="coolVal">5</b>s
-          <input type="range" id="coolRange" min="1" max="15" value="5" />
-        </label>
-        <label class="check">
-          <input type="checkbox" id="voiceToggle" checked /> Voice announcements
-        </label>
-        <label class="check">
-          <input type="checkbox" id="sayCategory" /> Also say category
-        </label>
-        <button id="testVoiceBtn" class="secondary">Test voice</button>
+        <div class="button-row">
+          <button id="refreshBtn" class="secondary" type="button">Refresh cameras</button>
+          <button id="startBtn" type="button">Start camera</button>
+          <button id="stopBtn" class="secondary" type="button" disabled>Stop</button>
+        </div>
       </div>
+      <p id="cameraHelp" class="helper">If the phone camera does not appear, make sure its webcam app is connected, then refresh.</p>
+
+      <section class="settings" aria-labelledby="settingsHeading">
+        <h2 id="settingsHeading">Detection &amp; voice settings</h2>
+        <div class="range-settings">
+          <label class="range-field" for="confRange">
+            <span>Minimum confidence <b><span id="confVal">60</span>%</b></span>
+            <input type="range" id="confRange" min="30" max="95" value="60" />
+          </label>
+          <label class="range-field" for="coolRange">
+            <span>Announcement cooldown <b><span id="coolVal">5</span>s</b></span>
+            <input type="range" id="coolRange" min="1" max="15" value="5" />
+          </label>
+        </div>
+        <div class="voice-settings">
+          <label class="check">
+            <input type="checkbox" id="voiceToggle" checked /> Voice announcements
+          </label>
+          <label class="check">
+            <input type="checkbox" id="sayCategory" /> Also say category
+          </label>
+          <button id="testVoiceBtn" class="secondary" type="button">Test voice</button>
+        </div>
+      </section>
     </section>
 
-    <aside class="right">
-      <h2>Currently detected</h2>
-      <ul id="detectList" class="detect-list"><li class="empty">Nothing detected yet</li></ul>
+    <aside class="right panel" aria-label="Detection results">
+      <section class="result-section" aria-labelledby="detectionsHeading">
+        <div class="section-heading compact">
+          <h2 id="detectionsHeading">Currently detected</h2>
+          <span id="detectedCount" class="count">0</span>
+        </div>
+        <ul id="detectList" class="detect-list" aria-live="polite"><li class="empty">Nothing detected yet</li></ul>
+      </section>
 
-      <h2>Announcement log</h2>
-      <ul id="logList" class="log-list"><li class="empty">No announcements yet</li></ul>
+      <section class="result-section" aria-labelledby="logHeading">
+        <div class="section-heading compact">
+          <h2 id="logHeading">Announcement log</h2>
+          <button id="clearLogBtn" class="text-button" type="button">Clear</button>
+        </div>
+        <ul id="logList" class="log-list" aria-live="polite"><li class="empty">No announcements yet</li></ul>
+      </section>
     </aside>
   </main>
+
+  <footer>Detection runs in this browser using TensorFlow.js and COCO-SSD.</footer>
 
   <!-- TensorFlow.js + pre-trained COCO-SSD model (80 object classes) -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
