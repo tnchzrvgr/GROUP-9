@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Object Detector + Voice</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>AI Real-Time Object Detection &amp; Voice Announcement</h1>
+    <div class="badges">
+      <span id="modelBadge" class="badge off">Model: loading…</span>
+      <span id="camBadge" class="badge off">Camera: disconnected</span>
+      <span id="fpsBadge" class="badge off">0 FPS</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="left">
+      <div class="controls">
+        <label>
+          Camera source
+          <select id="deviceSelect"><option value="">Click “Start Camera” first</option></select>
+        </label>
+        <button id="startBtn">Start Camera</button>
+        <button id="stopBtn" class="secondary" disabled>Stop</button>
+      </div>
+
+      <div class="video-wrap" id="videoWrap">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div id="placeholder">Camera feed will appear here</div>
+      </div>
+
+      <div class="settings">
+        <label>
+          Min confidence: <b id="confVal">60</b>%
+          <input type="range" id="confRange" min="30" max="95" value="60" />
+        </label>
+        <label>
+          Announce cooldown: <b id="coolVal">5</b>s
+          <input type="range" id="coolRange" min="1" max="15" value="5" />
+        </label>
+        <label class="check">
+          <input type="checkbox" id="voiceToggle" checked /> Voice announcements
+        </label>
+        <button id="testVoiceBtn" class="secondary">Test voice</button>
+      </div>
+    </section>
+
+    <aside class="right">
+      <h2>Currently detected</h2>
+      <ul id="detectList" class="detect-list"><li class="empty">Nothing detected yet</li></ul>
+
+      <h2>Announcement log</h2>
+      <ul id="logList" class="log-list"><li class="empty">No announcements yet</li></ul>
+    </aside>
+  </main>
+
+  <!-- TensorFlow.js + pre-trained COCO-SSD model (80 object classes) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
