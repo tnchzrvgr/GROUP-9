@@ -20,6 +20,7 @@ const logList = $('logList');
 const confRange = $('confRange');
 const coolRange = $('coolRange');
 const voiceToggle = $('voiceToggle');
+const sayCategory = $('sayCategory');
 
 // ---------- Settings ----------
 const CONFIRM_FRAMES = 3;     // object must be seen in N consecutive detections before announcing
@@ -29,6 +30,25 @@ const DETECT_INTERVAL_MS = 100;
 
 let minConfidence = 0.6;
 let cooldownMs = 5000;
+
+// ---------- Categories (COCO supercategories) ----------
+const CATEGORY_MAP = {
+  'Person': ['person'],
+  'Vehicle': ['bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat'],
+  'Outdoor': ['traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench'],
+  'Animal': ['bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe'],
+  'Accessory': ['backpack', 'umbrella', 'handbag', 'tie', 'suitcase'],
+  'Sports': ['frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket'],
+  'Kitchen': ['bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl'],
+  'Food': ['banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake'],
+  'Furniture': ['chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet'],
+  'Electronic': ['tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone'],
+  'Appliance': ['microwave', 'oven', 'toaster', 'sink', 'refrigerator'],
+  'Indoor': ['book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'],
+};
+const LABEL_TO_CATEGORY = {};
+for (const [cat, labels] of Object.entries(CATEGORY_MAP)) labels.forEach((l) => (LABEL_TO_CATEGORY[l] = cat));
+const categoryOf = (label) => LABEL_TO_CATEGORY[label] || 'Other';
 
 // ---------- State ----------
 let model = null;
@@ -189,7 +209,7 @@ function drawBoxes(preds) {
     const [x, y, w, h] = p.bbox;
     ctx.strokeStyle = '#22c55e';
     ctx.strokeRect(x, y, w, h);
-    const text = `${p.class} ${(p.score * 100).toFixed(0)}%`;
+    const text = `${p.class} (${categoryOf(p.class)}) ${(p.score * 100).toFixed(0)}%`;
     const tw = ctx.measureText(text).width + 10;
     const th = fs + 6;
     const ly = y - th < 0 ? y : y - th;
@@ -217,7 +237,8 @@ function renderDetections(preds) {
     .forEach(([name, score]) => {
       const pct = Math.round(score * 100);
       const li = document.createElement('li');
-      li.innerHTML = `<span class="name">${name}</span>
+      li.innerHTML = `<span><span class="name">${name}</span>
+          <span class="cat">${categoryOf(name)}</span></span>
         <span style="display:flex;align-items:center">
           <span class="bar"><i style="width:${pct}%"></i></span>
           <span class="pct">${pct}%</span>
@@ -231,7 +252,8 @@ function addLog(label) {
   if (empty) empty.remove();
   const li = document.createElement('li');
   const time = new Date().toLocaleTimeString();
-  li.innerHTML = `<span style="text-transform:capitalize">${label} detected</span><span class="time">${time}</span>`;
+  li.innerHTML = `<span><span style="text-transform:capitalize">${label} detected</span>
+    <span class="cat">${categoryOf(label)}</span></span><span class="time">${time}</span>`;
   logList.prepend(li);
   while (logList.children.length > 50) logList.lastChild.remove();
 }
@@ -268,7 +290,10 @@ function updateAnnouncements(preds) {
     if (t.streak < CONFIRM_FRAMES || t.announced) continue;
     if (now - t.lastAnnounced < cooldownMs) continue;
     if (now - lastSpeechTime < MIN_GAP_MS) break;
-    if (speak(`${label} detected`)) {
+    const phrase = sayCategory.checked
+      ? `${label} detected. Category: ${categoryOf(label)}`
+      : `${label} detected`;
+    if (speak(phrase)) {
       t.announced = true;
       t.lastAnnounced = now;
       lastSpeechTime = now;

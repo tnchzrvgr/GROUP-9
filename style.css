@@ -63,3 +63,8 @@ li.empty { color: #64748b; background: transparent; padding-left: 0; }
 .log-list { max-height: 260px; overflow-y: auto; }
 .log-list li { display: flex; justify-content: space-between; }
 .log-list .time { color: #64748b; font-size: .8rem; }
+
+.cat {
+  display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
+  background: #1d4ed8; color: #dbeafe; font-size: .72rem; font-weight: 600;
+}

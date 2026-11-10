@@ -38,6 +38,10 @@ Smartphone camera → Laptop web app → Pre-trained model → Voice output
  └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## Categories
+
+Each detected object is also shown with its category (Person, Vehicle, Animal, Kitchen, Food, Furniture, Electronic, Appliance, Accessory, Sports, Outdoor, Indoor), based on the COCO dataset's supercategories. The category appears on the box label, in the detection list and in the log. Tick **Also say category** to have it spoken too (e.g. "bottle detected. Category: Kitchen").
+
 ## Technologies used
 
 | Component | Technology | What it does |
